@@ -17,7 +17,7 @@ pub type Picker = (
 #[cfg(target_os = "linux")]
 pub fn get_pickers(matches: &ArgMatches) -> Vec<Picker> {
     let wide = matches.get_flag("wide");
-    vec![
+    let mut pickers = vec![
         concat_helper(
             if wide {
                 ("--procs--".into(), "   r    b".into())
@@ -62,7 +62,18 @@ pub fn get_pickers(matches: &ArgMatches) -> Vec<Picker> {
             },
             get_cpu_info,
         ),
-    ]
+    ];
+    if matches.get_flag("timestamp") {
+        pickers.push(concat_helper(
+            (
+                "-----timestamp-----".into(),
+                format!("{:>19}", uucore::custom_tz_fmt::custom_time_format("%Z")),
+            ),
+            get_timestamp,
+        ));
+    }
+
+    pickers
 }
 
 #[cfg(target_os = "linux")]
@@ -99,7 +110,7 @@ fn concat_helper(
                     } else {
                         len - *data_len_excess
                     };
-                    let formatted_value = format!("{:>width$}", value, width = len);
+                    let formatted_value = format!("{value:>len$}");
                     *data_len_excess = formatted_value.len() - len;
                     data.push(formatted_value);
                 });
@@ -151,10 +162,10 @@ fn get_memory_info(
         let inactive = with_unit(memory_info.inactive.as_u64(), matches);
         let active = with_unit(memory_info.active.as_u64(), matches);
         return vec![
-            (len, format!("{}", swap_used)),
-            (len, format!("{}", free)),
-            (len, format!("{}", inactive)),
-            (len, format!("{}", active)),
+            (len, format!("{swap_used}")),
+            (len, format!("{free}")),
+            (len, format!("{inactive}")),
+            (len, format!("{active}")),
         ];
     }
 
@@ -162,10 +173,10 @@ fn get_memory_info(
     let cache = with_unit(memory_info.cached.as_u64(), matches);
 
     vec![
-        (len, format!("{}", swap_used)),
-        (len, format!("{}", free)),
-        (len, format!("{}", buffer)),
-        (len, format!("{}", cache)),
+        (len, format!("{swap_used}")),
+        (len, format!("{free}")),
+        (len, format!("{buffer}")),
+        (len, format!("{cache}")),
     ]
 }
 
@@ -266,4 +277,16 @@ fn get_cpu_info(
         (len, format!("{:.0}", cpu_load.steal_time)),
         (len, format!("{:.0}", cpu_load.guest)),
     ]
+}
+
+#[cfg(target_os = "linux")]
+fn get_timestamp(
+    _proc_data: &ProcData,
+    _proc_data_before: Option<&ProcData>,
+    _matches: &ArgMatches,
+) -> Vec<(usize, String)> {
+    vec![(
+        10,
+        chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+    )]
 }
